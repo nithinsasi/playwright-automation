@@ -1,53 +1,60 @@
 import { test, expect } from '@playwright/test';
+import { faker } from '@faker-js/faker';
 
-test('Affiliate promotion creation flow', async ({ page }) => {
-  // Increase overall test timeout to 2 minutes
-  test.setTimeout(120000);
+test('Affiliate signup flow', async ({ page }) => {
+  // Set default timeout for all waiting operations
+  page.setDefaultTimeout(60000);
 
-  // Step 1: Login (using environment variables)
-  await page.goto('https://hf.buzops.com/portal');
-  await page.getByRole('textbox', { name: 'User name/Email/Mobile Number' })
-    .fill(process.env.TEST_USERNAME || 'test@example.com');
-  await page.getByRole('textbox', { name: 'Password here...' })
-    .fill(process.env.TEST_PASSWORD || 'password');
+  // Generate fake email and password for signup
+  const fakeEmail = faker.internet.email();
+  const fakePassword = faker.internet.password();
+
+  // Navigate and wait for the page to be ready
+  await page.goto('https://hf.buzops.com/portal', { waitUntil: 'networkidle' });
+
+  // Login process with explicit waits
+  const usernameField = page.getByRole('textbox', { name: 'User name/Email/Mobile Number' });
+  await usernameField.waitFor({ state: 'visible' });
+  await usernameField.click();
+  await usernameField.fill(process.env.TEST_USERNAME || fakeEmail);
+
+  const passwordField = page.getByRole('textbox', { name: 'Password here...' });
+  await passwordField.waitFor({ state: 'visible' });
+  await passwordField.click();
+  await passwordField.fill(process.env.TEST_PASSWORD || fakePassword);
+
   await page.getByRole('button', { name: 'SIGN IN' }).click();
 
-  // Step 2: Navigate to Owner section
-  await page.getByRole('link', { name: 'Owner' }).click();
+  // Wait for navigation after login
+  await page.waitForLoadState('networkidle');
 
-  // Step 3: Go to Affiliate Program page
+  // Click Owner link and wait for the page to settle
+  const ownerLink = page.getByRole('link', { name: 'Owner' });
+  await ownerLink.waitFor({ state: 'visible', timeout: 30000 });
+  await ownerLink.click();
+  await page.waitForLoadState('networkidle');
+
+  // Navigate to Affiliate Program
   await page.goto('https://hf.buzops.com/Common/Club/AffiliateProgram#!/');
+  await page.waitForLoadState('networkidle');
 
-  // Step 4: Interact with iframe using frameLocator
+  // Wait for iframe to be available
   const frame = page.frameLocator('#myiFrame');
 
-  // Wait for Promotions tab and click
-  await frame.getByText('Promotions').waitFor({ timeout: 60000 });
-  await frame.getByText('Promotions').click();
+  // Wait for and click Affiliate tab
+  await frame.getByText('Affiliate', { exact: true }).waitFor({ timeout: 30000 });
+  await frame.getByText('Affiliate', { exact: true }).click();
 
-  // Add Promotion
-  await frame.getByRole('button', { name: 'Add Promotion' }).click();
+  // Wait for loading to complete
+  await page.waitForSelector('#page-loading', { state: 'hidden', timeout: 30000 });
 
-  // Select promotion type
-  await frame.locator('select[name="PromotionType"]').selectOption('4');
-
-  // Select discount option
-  await frame.getByText('$7.5 Off')
-    .filter({ hasText: /^\$7\.5 Off$/ })
-    .locator('span')
-    .first()
-    .click();
-
-  // Navigate to Settings
+  // Click Settings tab
   await frame.getByText('Settings').click();
 
-  // Set attribution type
-  await frame.locator('div').filter({ hasText: /^Last Interaction$/ }).locator('span').first().click();
+  // Interact with signup form checkbox
+  await frame.locator('label').filter({ hasText: 'Sign Up Form' }).locator('span').first().click();
 
-  // Complete promotion
-  await frame.getByRole('button', { name: 'Done' }).click();
-  
-  // TODO: Add assertions to verify promotion created successfully
-  // await expect(frame.getByText('Promotion created')).toBeVisible();
+  // TODO: Complete the signup flow and add assertions
+  // Example assertion (uncomment when applicable):
+  // await expect(frame.getByText('Signup successful')).toBeVisible();
 });
-
